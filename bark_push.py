@@ -5,21 +5,53 @@ Bark 官方服务：https://api.day.app
 推送格式：GET https://api.day.app/{key}/{title}/{body}
 """
 
-import urllib.parse
 import requests
 
 BARK_BASE_URL = "https://api.day.app"
 
 
+def _build_body(
+    special_meals1: list[str],
+    zero_meals1: list[str],
+    special_meals2: list[str],
+    zero_meals2: list[str],
+) -> str:
+    lines: list[str] = []
+
+    def section(header: str, meals: list[str]) -> None:
+        lines.append(header)
+        if meals:
+            lines.extend(f"  {m}" for m in meals)
+        else:
+            lines.append("  今日暂无")
+        lines.append("")
+
+    lines.append("═══ 一期 ═══")
+    section("▸ 特色餐", special_meals1)
+    section("▸ 零点自选", zero_meals1)
+
+    lines.append("═══ 二期 ═══")
+    section("▸ 特色餐", special_meals2)
+    section("▸ 零点自选", zero_meals2)
+
+    # 去掉末尾多余空行
+    while lines and lines[-1] == "":
+        lines.pop()
+
+    return "\n".join(lines)
+
+
 def push_menu(
     bark_keys: str,
     title: str,
-    special_meals: list[str],
-    zero_point_meals: list[str],
+    special_meals1: list[str],
+    zero_meals1: list[str],
+    special_meals2: list[str],
+    zero_meals2: list[str],
     weekday_name: str,
 ) -> bool:
     """
-    将今日菜单推送到 Bark。
+    将今日一期+二期菜单推送到 Bark。
     bark_keys 支持单个 Key 或多个 Key（逗号分隔），全部推送成功才返回 True。
     """
     keys = [k.strip() for k in bark_keys.split(",") if k.strip()]
@@ -27,36 +59,21 @@ def push_menu(
         print("✗ BARK_KEY 为空")
         return False
 
-    body_lines: list[str] = []
-
-    if special_meals:
-        body_lines.append("【特色餐】")
-        body_lines.extend(special_meals)
-    else:
-        body_lines.append("【特色餐】今日无数据")
-
-    body_lines.append("")
-
-    if zero_point_meals:
-        body_lines.append("【零点自选】")
-        body_lines.extend(zero_point_meals)
-    else:
-        body_lines.append("【零点自选】今日无数据")
-
-    body = "\n".join(body_lines)
-    encoded_title = urllib.parse.quote(title, safe="")
-    encoded_body = urllib.parse.quote(body, safe="")
-    params = {
-        "sound": "minuet",
-        "group": "每日菜单",
-        "icon": "https://img.icons8.com/emoji/96/fork-and-knife-with-plate-emoji.png",
-    }
+    body = _build_body(special_meals1, zero_meals1, special_meals2, zero_meals2)
 
     all_success = True
     for key in keys:
-        url = f"{BARK_BASE_URL}/{key}/{encoded_title}/{encoded_body}"
+        url = f"{BARK_BASE_URL}/push"
+        payload = {
+            "device_key": key,
+            "title": title,
+            "body": body,
+            "sound": "minuet",
+            "group": "每日菜单",
+            "icon": "https://img.icons8.com/emoji/96/fork-and-knife-with-plate-emoji.png",
+        }
         try:
-            resp = requests.get(url, params=params, timeout=15)
+            resp = requests.post(url, json=payload, timeout=15)
             resp.raise_for_status()
             data = resp.json()
             if data.get("code") == 200:

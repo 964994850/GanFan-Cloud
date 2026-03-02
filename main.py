@@ -37,7 +37,7 @@ def main() -> None:
     print("\n[1/4] 获取最新文章...")
     article_url, article_title = get_latest_article()
 
-    # ── 步骤 2：下载图片（取第2张，即菜单主图） ──────────────────────────
+    # ── 步骤 2：下载图片（取第1、2张） ───────────────────────────────────
     print("\n[2/4] 下载菜单图片...")
     with tempfile.TemporaryDirectory() as tmpdir:
         save_dir = Path(tmpdir)
@@ -47,24 +47,29 @@ def main() -> None:
             print(f"✗ 下载图片不足（获取到 {len(images)} 张，需要至少 2 张）")
             sys.exit(1)
 
-        menu_image = images[1]  # 第2张为菜单表格图
-
-        # ── 步骤 3：MinerU API OCR ─────────────────────────────────────
-        print("\n[3/4] 调用 MinerU API 解析图片...")
-        md_content = parse_image_with_api(menu_image, mineru_token)
+        # ── 步骤 3：两张图片分别 OCR ──────────────────────────────────
+        print("\n[3/4] 调用 MinerU API 解析图片（一期 + 二期）...")
+        md_phase1 = parse_image_with_api(images[0], mineru_token)
+        md_phase2 = parse_image_with_api(images[1], mineru_token)
 
     # ── 步骤 4：解析表格 + 推送 ──────────────────────────────────────────
     print("\n[4/4] 解析菜单表格并推送...")
-    special_table, zero_point_table = extract_tables_from_md(md_content)
 
-    if not special_table and not zero_point_table:
-        print("✗ 未能从 Markdown 中提取到任何表格，请检查图片或 OCR 结果")
+    special1, zero1 = extract_tables_from_md(md_phase1)
+    special2, zero2 = extract_tables_from_md(md_phase2)
+
+    if not any([special1, zero1, special2, zero2]):
+        print("✗ 两张图片均未提取到表格，请检查图片或 OCR 结果")
         sys.exit(1)
 
-    special_meals, zero_point_meals, today_name = extract_today_menu(special_table, zero_point_table)
+    special_meals1, zero_meals1, today_name = extract_today_menu(special1, zero1)
+    special_meals2, zero_meals2, _           = extract_today_menu(special2, zero2)
 
     title = f"{today_name}菜单"
-    success = push_menu(bark_key, title, special_meals, zero_point_meals, today_name)
+    success = push_menu(bark_key, title,
+                        special_meals1, zero_meals1,
+                        special_meals2, zero_meals2,
+                        today_name)
 
     print("\n" + "=" * 60)
     if success:
