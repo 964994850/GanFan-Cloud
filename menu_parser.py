@@ -98,10 +98,10 @@ def _detect_weekday_columns(header_row: list, data_col_start: int = 1) -> list[t
 def extract_today_menu(
     special_table: list[list] | None,
     zero_point_table: list[list] | None,
-) -> tuple[list[str], list[str], str]:
+) -> tuple[list[str], list[str], list[str], str]:
     """
     根据当前日期从表格中提取今日菜单。
-    返回 (特色餐列表, 零点自选列表, 今日星期名称)。
+    返回 (特色餐列表, 午餐自选列表, 晚餐自选列表, 今日星期名称)。
     """
     today_weekday = datetime.now().weekday()
     today_name = _get_weekday_name(today_weekday)
@@ -127,7 +127,25 @@ def extract_today_menu(
         else:
             print(f"⚠ 零点自选表格中未找到 {today_name} 对应列")
 
-    return special_meals, zero_point_meals, today_name
+    lunch_meals, dinner_meals = _split_lunch_dinner(zero_point_meals)
+    return special_meals, lunch_meals, dinner_meals, today_name
+
+
+def _split_lunch_dinner(zero_point_meals: list[str]) -> tuple[list[str], list[str]]:
+    """
+    将零点自选按午餐/晚餐拆分。
+    以"晚餐"关键字为分界线，之前为午餐，之后为晚餐。
+    若无法识别分界则按前半/后半平分。
+    """
+    dinner_start = next(
+        (i for i, m in enumerate(zero_point_meals) if "晚餐" in m),
+        None,
+    )
+    if dinner_start is not None:
+        return zero_point_meals[:dinner_start], zero_point_meals[dinner_start:]
+    # 兜底：平分
+    mid = len(zero_point_meals) // 2
+    return zero_point_meals[:mid], zero_point_meals[mid:]
 
 
 def _extract_special(table: list[list], col_index: int) -> list[str]:

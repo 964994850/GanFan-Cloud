@@ -2,7 +2,7 @@
 Bark 推送模块
 使用 Bark iOS 应用推送每日菜单通知。
 Bark 官方服务：https://api.day.app
-推送格式：GET https://api.day.app/{key}/{title}/{body}
+使用 POST JSON 方式推送，支持长内容。
 """
 
 import requests
@@ -10,60 +10,15 @@ import requests
 BARK_BASE_URL = "https://api.day.app"
 
 
-def _build_body(
-    special_meals1: list[str],
-    zero_meals1: list[str],
-    special_meals2: list[str],
-    zero_meals2: list[str],
-) -> str:
-    lines: list[str] = []
-
-    def section(header: str, meals: list[str]) -> None:
-        lines.append(header)
-        if meals:
-            lines.extend(f"  {m}" for m in meals)
-        else:
-            lines.append("  今日暂无")
-        lines.append("")
-
-    lines.append("═══ 一期 ═══")
-    section("▸ 特色餐", special_meals1)
-    section("▸ 零点自选", zero_meals1)
-
-    lines.append("═══ 二期 ═══")
-    section("▸ 特色餐", special_meals2)
-    section("▸ 零点自选", zero_meals2)
-
-    # 去掉末尾多余空行
-    while lines and lines[-1] == "":
-        lines.pop()
-
-    return "\n".join(lines)
-
-
-def push_menu(
-    bark_keys: str,
-    title: str,
-    special_meals1: list[str],
-    zero_meals1: list[str],
-    special_meals2: list[str],
-    zero_meals2: list[str],
-    weekday_name: str,
-) -> bool:
-    """
-    将今日一期+二期菜单推送到 Bark。
-    bark_keys 支持单个 Key 或多个 Key（逗号分隔），全部推送成功才返回 True。
-    """
+def _push(bark_keys: str, title: str, body: str) -> bool:
+    """底层推送，支持逗号分隔的多个 Key。"""
     keys = [k.strip() for k in bark_keys.split(",") if k.strip()]
     if not keys:
         print("✗ BARK_KEY 为空")
         return False
 
-    body = _build_body(special_meals1, zero_meals1, special_meals2, zero_meals2)
-
     all_success = True
     for key in keys:
-        url = f"{BARK_BASE_URL}/push"
         payload = {
             "device_key": key,
             "title": title,
@@ -73,7 +28,7 @@ def push_menu(
             "icon": "https://img.icons8.com/emoji/96/fork-and-knife-with-plate-emoji.png",
         }
         try:
-            resp = requests.post(url, json=payload, timeout=15)
+            resp = requests.post(f"{BARK_BASE_URL}/push", json=payload, timeout=15)
             resp.raise_for_status()
             data = resp.json()
             if data.get("code") == 200:
@@ -86,3 +41,85 @@ def push_menu(
             all_success = False
 
     return all_success
+
+
+def _format_section(label: str, meals: list[str]) -> list[str]:
+    lines = [label]
+    lines.extend(f"  {m}" for m in meals)
+    return lines
+
+
+def push_special(
+    bark_keys: str,
+    today_name: str,
+    special1: list[str],
+    special2: list[str],
+) -> bool:
+    """
+    08:20 推送特色餐。一期/二期均无内容时跳过不推。
+    """
+    if not special1 and not special2:
+        print("今日无特色餐，跳过推送")
+        return True
+
+    lines: list[str] = []
+    if special1:
+        lines += ["═══ 一期特色餐 ═══"]
+        lines += [f"  {m}" for m in special1]
+        lines.append("")
+    if special2:
+        lines += ["═══ 二期特色餐 ═══"]
+        lines += [f"  {m}" for m in special2]
+
+    while lines and lines[-1] == "":
+        lines.pop()
+
+    return _push(bark_keys, f"{today_name} · 特色餐", "\n".join(lines))
+
+
+def push_lunch(
+    bark_keys: str,
+    today_name: str,
+    lunch1: list[str],
+    lunch2: list[str],
+) -> bool:
+    """11:30 推送午餐自选。一期/二期均无内容时跳过不推。"""
+    if not lunch1 and not lunch2:
+        print("今日无午餐自选数据，推送提示")
+        return _push(bark_keys, f"{today_name} · 午餐自选", "今日食堂无餐食")
+
+    lines: list[str] = []
+    lines += ["═══ 一期 ═══"]
+    lines += _format_section("▸ 午餐自选", lunch1) if lunch1 else ["  今日暂无"]
+    lines.append("")
+    lines += ["═══ 二期 ═══"]
+    lines += _format_section("▸ 午餐自选", lunch2) if lunch2 else ["  今日暂无"]
+
+    while lines and lines[-1] == "":
+        lines.pop()
+
+    return _push(bark_keys, f"{today_name} · 午餐自选", "\n".join(lines))
+
+
+def push_dinner(
+    bark_keys: str,
+    today_name: str,
+    dinner1: list[str],
+    dinner2: list[str],
+) -> bool:
+    """17:00 推送晚餐自选。一期/二期均无内容时跳过不推。"""
+    if not dinner1 and not dinner2:
+        print("今日无晚餐自选数据，推送提示")
+        return _push(bark_keys, f"{today_name} · 晚餐自选", "今日食堂无餐食")
+
+    lines: list[str] = []
+    lines += ["═══ 一期 ═══"]
+    lines += _format_section("▸ 晚餐自选", dinner1) if dinner1 else ["  今日暂无"]
+    lines.append("")
+    lines += ["═══ 二期 ═══"]
+    lines += _format_section("▸ 晚餐自选", dinner2) if dinner2 else ["  今日暂无"]
+
+    while lines and lines[-1] == "":
+        lines.pop()
+
+    return _push(bark_keys, f"{today_name} · 晚餐自选", "\n".join(lines))

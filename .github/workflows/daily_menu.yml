@@ -2,10 +2,20 @@ name: 每日菜单推送
 
 on:
   schedule:
-    # UTC 00:00 = 北京时间 08:00，每天触发
-    - cron: '0 0 * * *'
-  # 允许手动触发，方便调试
+    - cron: '20 0 * * *'   # UTC 00:20 = 北京时间 08:20  特色餐
+    - cron: '30 3 * * *'   # UTC 03:30 = 北京时间 11:30  午餐自选
+    - cron: '0  9 * * *'   # UTC 09:00 = 北京时间 17:00  晚餐自选
   workflow_dispatch:
+    inputs:
+      mode:
+        description: '推送模式'
+        required: true
+        default: 'special'
+        type: choice
+        options:
+          - special
+          - lunch
+          - dinner
 
 jobs:
   push-menu:
@@ -26,9 +36,25 @@ jobs:
       - name: 安装依赖
         run: pip install -r requirements.txt
 
-      - name: 运行每日菜单推送
-        working-directory: .
+      - name: 判断推送模式
+        id: mode
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "mode=${{ inputs.mode }}" >> $GITHUB_OUTPUT
+          else
+            HOUR=$(date -u +%H)
+            MIN=$(date -u +%M)
+            if [ "$HOUR" = "00" ]; then
+              echo "mode=special" >> $GITHUB_OUTPUT
+            elif [ "$HOUR" = "03" ]; then
+              echo "mode=lunch" >> $GITHUB_OUTPUT
+            else
+              echo "mode=dinner" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: 运行菜单推送
         env:
           MINERU_TOKEN: ${{ secrets.MINERU_TOKEN }}
           BARK_KEY: ${{ secrets.BARK_KEY }}
-        run: python main.py
+        run: python main.py --mode ${{ steps.mode.outputs.mode }}
