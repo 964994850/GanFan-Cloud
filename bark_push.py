@@ -12,7 +12,7 @@ BARK_BASE_URL = "https://api.day.app"
 
 
 def push_menu(
-    bark_key: str,
+    bark_keys: str,
     title: str,
     special_meals: list[str],
     zero_point_meals: list[str],
@@ -20,8 +20,13 @@ def push_menu(
 ) -> bool:
     """
     将今日菜单推送到 Bark。
-    返回 True 表示成功，False 表示失败。
+    bark_keys 支持单个 Key 或多个 Key（逗号分隔），全部推送成功才返回 True。
     """
+    keys = [k.strip() for k in bark_keys.split(",") if k.strip()]
+    if not keys:
+        print("✗ BARK_KEY 为空")
+        return False
+
     body_lines: list[str] = []
 
     if special_meals:
@@ -41,27 +46,28 @@ def push_menu(
         body_lines.append("【零点自选】今日无数据")
 
     body = "\n".join(body_lines)
-
     encoded_title = urllib.parse.quote(title, safe="")
     encoded_body = urllib.parse.quote(body, safe="")
-    url = f"{BARK_BASE_URL}/{bark_key}/{encoded_title}/{encoded_body}"
-
     params = {
         "sound": "minuet",
         "group": "每日菜单",
         "icon": "https://img.icons8.com/emoji/96/fork-and-knife-with-plate-emoji.png",
     }
 
-    try:
-        resp = requests.get(url, params=params, timeout=15)
-        resp.raise_for_status()
-        data = resp.json()
-        if data.get("code") == 200:
-            print(f"✓ Bark 推送成功：{title}")
-            return True
-        else:
-            print(f"✗ Bark 推送返回异常: {data}")
-            return False
-    except Exception as exc:
-        print(f"✗ Bark 推送失败: {exc}")
-        return False
+    all_success = True
+    for key in keys:
+        url = f"{BARK_BASE_URL}/{key}/{encoded_title}/{encoded_body}"
+        try:
+            resp = requests.get(url, params=params, timeout=15)
+            resp.raise_for_status()
+            data = resp.json()
+            if data.get("code") == 200:
+                print(f"✓ Bark 推送成功：{title}（key=...{key[-6:]}）")
+            else:
+                print(f"✗ Bark 推送返回异常（key=...{key[-6:]}）: {data}")
+                all_success = False
+        except Exception as exc:
+            print(f"✗ Bark 推送失败（key=...{key[-6:]}）: {exc}")
+            all_success = False
+
+    return all_success
