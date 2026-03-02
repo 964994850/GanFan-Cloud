@@ -109,14 +109,14 @@ def extract_today_menu(
     special_meals: list[str] = []
     zero_point_meals: list[str] = []
 
-    # 特色餐（仅工作日）
-    if special_table and today_weekday < 5:
+    # 特色餐（表格中有对应列则提取，周末可能无数据属正常情况）
+    if special_table:
         cols = _detect_weekday_columns(special_table[0], data_col_start=1)
         col_map = {wnum: cidx for cidx, wnum in cols}
         if today_weekday in col_map:
             special_meals = _extract_special(special_table, col_map[today_weekday])
         else:
-            print(f"⚠ 特色餐表格中未找到 {today_name} 对应列")
+            print(f"⚠ 特色餐表格中未找到 {today_name} 对应列（周末可能无此安排）")
 
     # 零点自选
     if zero_point_table:

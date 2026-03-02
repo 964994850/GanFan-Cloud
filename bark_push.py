@@ -39,9 +39,7 @@ def push_menu(
 
     if zero_point_meals:
         body_lines.append("【零点自选】")
-        body_lines.extend(zero_point_meals[:15])  # 避免通知过长
-        if len(zero_point_meals) > 15:
-            body_lines.append(f"… 共 {len(zero_point_meals)} 项")
+        body_lines.extend(zero_point_meals)
     else:
         body_lines.append("【零点自选】今日无数据")
 
