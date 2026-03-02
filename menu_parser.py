@@ -6,6 +6,7 @@
 """
 
 import re
+import io
 from datetime import datetime
 
 try:
@@ -37,7 +38,7 @@ def _parse_html_table(html_table: str) -> list[list] | None:
     """将 <table>…</table> HTML 字符串解析为二维列表（自动处理 rowspan/colspan）。"""
     if HAS_PANDAS:
         try:
-            dfs = pd.read_html(html_table)
+            dfs = pd.read_html(io.StringIO(html_table))
             if dfs:
                 return dfs[0].values.tolist()
         except Exception:

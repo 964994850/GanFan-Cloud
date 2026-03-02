@@ -12,7 +12,7 @@ import requests
 from pathlib import Path
 
 BATCH_UPLOAD_URL = "https://mineru.net/api/v4/file-urls/batch"
-BATCH_RESULT_URL = "https://mineru.net/api/v4/extract/task/batch/{batch_id}"
+BATCH_RESULT_URL = "https://mineru.net/api/v4/extract-results/batch/{batch_id}"
 
 POLL_INTERVAL = 10   # 秒
 POLL_TIMEOUT = 300   # 最多等待 5 分钟
@@ -76,7 +76,7 @@ def parse_image_with_api(image_path: Path, token: str) -> str:
         if poll_data.get("code") != 0:
             raise RuntimeError(f"查询任务状态失败: {poll_data}")
 
-        files_info: list[dict] = poll_data.get("data", {}).get("files", [])
+        files_info: list[dict] = poll_data.get("data", {}).get("extract_result", [])
         if not files_info:
             continue
 
