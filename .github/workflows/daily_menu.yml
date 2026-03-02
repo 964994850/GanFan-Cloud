@@ -21,13 +21,13 @@ jobs:
         with:
           python-version: '3.11'
           cache: 'pip'
-          cache-dependency-path: fan-cloud/requirements.txt
+          cache-dependency-path: requirements.txt
 
       - name: 安装依赖
-        run: pip install -r fan-cloud/requirements.txt
+        run: pip install -r requirements.txt
 
       - name: 运行每日菜单推送
-        working-directory: fan-cloud
+        working-directory: .
         env:
           MINERU_TOKEN: ${{ secrets.MINERU_TOKEN }}
           BARK_KEY: ${{ secrets.BARK_KEY }}
