@@ -12,7 +12,7 @@ import requests
 from pathlib import Path
 
 BATCH_UPLOAD_URL = "https://mineru.net/api/v4/file-urls/batch"
-BATCH_RESULT_URL = "https://mineru.net/api/v4/extract/tasks/batch/{batch_id}"
+BATCH_RESULT_URL = "https://mineru.net/api/v4/extract/task/batch/{batch_id}"
 
 POLL_INTERVAL = 10   # 秒
 POLL_TIMEOUT = 300   # 最多等待 5 分钟
