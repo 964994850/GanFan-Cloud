@@ -17,21 +17,23 @@ MinerU 官方 API OCR → Markdown
 Bark iOS 推送
 ```
 
-GitHub Actions (`cron: 每天 08:00 北京时间`) 全程驱动，无需任何服务器。
+由 **外部定时服务** 在指定时间调用 GitHub API 触发 workflow，无需自建服务器。
 
 ## 目录结构
 
 ```
 fan-cloud/
-├── main.py               # 主入口，串联所有步骤
+├── main.py               # 主入口（--mode special/lunch/dinner）
 ├── wechat_fetcher.py     # 微信公众号图片获取
-├── mineru_api.py         # MinerU 官方 API 调用（上传+轮询+下载）
-├── menu_parser.py        # 菜单 Markdown 表格解析
-├── bark_push.py          # Bark iOS 推送
-├── requirements.txt      # 依赖（无本地 MinerU）
-└── .github/
-    └── workflows/
-        └── daily_menu.yml  # GitHub Actions 定时任务
+├── mineru_api.py         # MinerU 官方 API 调用
+├── menu_parser.py        # 菜单表格解析
+├── bark_push.py          # Bark 推送
+├── requirements.txt
+└── .github/workflows/
+    ├── daily_special.yml   # 特色餐（08:20 触发）
+    ├── daily_lunch.yml    # 午餐自选（11:30 触发）
+    ├── daily_dinner.yml   # 晚餐自选（17:00 触发）
+    └── daily_menu.yml     # 手动触发 + 选择模式
 ```
 
 ## 前置准备（手动完成一次）
@@ -60,12 +62,31 @@ git push -u origin main
 
 ### 4. 配置 GitHub Secrets
 
-在仓库页面 **Settings → Secrets and variables → Actions → New repository secret** 添加：
+在仓库 **Settings → Secrets and variables → Actions** 添加：
 
 | Secret 名称 | 值 |
 |---|---|
 | `MINERU_TOKEN` | MinerU 申请的 API Token |
-| `BARK_KEY` | Bark App 中显示的设备 Key |
+| `BARK_KEY` | Bark App 中显示的设备 Key（多个用逗号分隔） |
+
+### 5. 外部定时服务（替代 GitHub cron）
+
+GitHub 自带的 schedule 容易漏跑，建议用 [cron-job.org](https://cron-job.org) 或 [EasyCron](https://www.easycron.com) 在指定时间触发 workflow。
+
+**步骤：**
+
+1. 在 GitHub 创建 **Personal Access Token**：Settings → Developer settings → Personal access tokens → Generate new token，勾选 `repo`。
+2. 在定时服务里新建 **3 个定时任务**，请求方式 **POST**，URL 和时间为：
+
+| 北京时间 | 请求 URL |
+|----------|----------|
+| 08:20 | `https://api.github.com/repos/你的用户名/你的仓库名/actions/workflows/daily_special.yml/dispatches` |
+| 11:30 | `https://api.github.com/repos/你的用户名/你的仓库名/actions/workflows/daily_lunch.yml/dispatches` |
+| 17:00 | `https://api.github.com/repos/你的用户名/你的仓库名/actions/workflows/daily_dinner.yml/dispatches` |
+
+3. 请求头：`Authorization: Bearer 你的Token`，`Accept: application/vnd.github+json`，`X-GitHub-Api-Version: 2022-11-28`。
+4. 请求体（JSON）：`{"ref":"main"}`（如默认分支是 `main`，否则改成实际分支名）。
+5. 定时规则：按服务商的 cron 或“每天 08:20 / 11:30 / 17:00”设置（注意选 **北京时区** 或换算成 UTC：08:20=00:20 UTC，11:30=03:30 UTC，17:00=09:00 UTC）。
 
 ## 本地测试
 
@@ -79,7 +100,7 @@ $env:BARK_KEY = "your_bark_key"
 python main.py
 
 # Linux/macOS
-MINERU_TOKEN=your_token BARK_KEY=your_bark_key python main.py
+MINERU_TOKEN=your_token BARK_KEY=your_bark_key python main.py --mode special
 ```
 
 ## 与原版本的差异
@@ -89,5 +110,5 @@ MINERU_TOKEN=your_token BARK_KEY=your_bark_key python main.py
 | 图片获取 | `wechat_menu_scraper.py` | `wechat_fetcher.py`（相同逻辑，去掉 schedule） |
 | OCR 解析 | 本地 `mineru` 命令行 | MinerU 官方 REST API |
 | 结果输出 | 生成 HTML 文件 | Bark iOS 推送 |
-| 触发方式 | 手动运行 | GitHub Actions cron |
+| 触发方式 | 手动运行 | 外部定时服务 + GitHub Actions workflow_dispatch |
 | 本地依赖 | MinerU + Playwright | 仅 requests + bs4 + pandas |

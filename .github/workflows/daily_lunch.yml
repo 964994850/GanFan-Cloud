@@ -1,18 +1,9 @@
-# 仅用于手动触发，可选择推送模式
-name: 每日菜单推送（手动）
+# 午餐自选（无则推送「今日食堂无餐食」）
+# 由外部定时服务在 11:30 北京时间 触发
+name: 每日菜单 · 午餐自选
 
 on:
   workflow_dispatch:
-    inputs:
-      mode:
-        description: '推送模式'
-        required: true
-        default: 'special'
-        type: choice
-        options:
-          - special
-          - lunch
-          - dinner
 
 jobs:
   push-menu:
@@ -26,8 +17,8 @@ jobs:
           cache: 'pip'
           cache-dependency-path: requirements.txt
       - run: pip install -r requirements.txt
-      - name: 运行菜单推送
+      - name: 推送午餐自选
         env:
           MINERU_TOKEN: ${{ secrets.MINERU_TOKEN }}
           BARK_KEY: ${{ secrets.BARK_KEY }}
-        run: python main.py --mode ${{ inputs.mode }}
+        run: python main.py --mode lunch
