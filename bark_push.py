@@ -23,7 +23,7 @@ def _push(bark_keys: str, title: str, body: str) -> bool:
             "device_key": key,
             "title": title,
             "body": body,
-            "sound": "minuet",
+            "sound": "calypso",
             "group": "每日菜单",
             "icon": "https://img.icons8.com/emoji/96/fork-and-knife-with-plate-emoji.png",
         }
